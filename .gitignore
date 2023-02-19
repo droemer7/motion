@@ -1,0 +1,8 @@
+# Data logging
+data
+
+# Optimization library (keep separate from this repo so it can track its upstream repo)
+cppoptlib
+
+# VS Code
+.vscode
