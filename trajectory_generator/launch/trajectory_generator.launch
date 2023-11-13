@@ -1,0 +1,12 @@
+<launch>
+  <!-- Launch arguments -->
+  <arg name="car_name"  default="car"/>
+  <arg name="mode_real" default="false"/>
+
+  <!-- Trajectory Generator -->
+  <group ns="$(arg car_name)">
+    <!-- Node -->
+    <node pkg="trajectory_generator" type="trajectory_generator" name="trajectory_generator" output="screen">
+    </node>
+  </group>
+</launch>
