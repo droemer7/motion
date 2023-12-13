@@ -1,5 +1,10 @@
 import numpy as np
 import sympy
+import seaborn as sns
+
+# Add grid to plot
+sns.set()
+sns.set_style("whitegrid", {'grid.linestyle': '--'})
 
 class QuinticSpline:
   """Defines a quintic spline with G2 continuity as r(u) = [x(u) y(u)]^T
@@ -111,32 +116,46 @@ class QuinticSpline:
   def __call__(self, u: float) -> tuple:
     return self.x(u), self.y(u)
 
-def calc_n(p: list) -> float:
+def calc_n(p0: float, p1: float) -> float:
 
-  delta_x = p[1][0] - p[0][0]
-  delta_y = p[1][1] - p[0][1]
-  delta_th = p[1][2] - p[0][2]
+  delta_x = abs(p1[0] - p0[0])
+  delta_y = abs(p1[1] - p0[1])
+  delta_th = abs(p1[2] - p0[2])
 
-  delta_max = 0.0
-  if delta_x > delta_y:
-    delta_max = delta_x
-  else:
-    delta_max = delta_y
+  delta_max = max(delta_x, delta_y)
+  delta_min = min(delta_x, delta_y)
 
   if delta_th > np.pi:
     delta_th = 2 * np.pi - delta_th
 
   n = 0.0
-  if delta_th > np.pi / 2:
+  if delta_th >= np.pi / 2:
     n = (  2 * delta_max ** 2 \
          * 2 * (delta_th / np.pi)
         ) ** 0.5
   else:
-    n = (delta_max ** 2 +  delta_max ** 2) ** 0.5
+    n = 1.4142 * delta_max
 
-  print("n = ", n)
   return n
 
+def gen_spline(p: list) -> list:
+  s = []
+  for i in range(1, len(p)+1):
+    if i < len(p):
+      n1 = n2 = calc_n(p[i-1], p[i])
+      s.append(QuinticSpline(n = [n1, n2, 0, 0],
+                             pi = p[i-1],
+                             pf = p[i]
+                            )
+              )
+    else:
+      n1 = n2 = calc_n(p[i-1], p[0])
+      s.append(QuinticSpline(n = [n1, n2, 0, 0],
+                             pi = p[i-1],
+                             pf = p[0]
+                            )
+              )
+  return s
 
 def figure_8(h: float) -> tuple:
   p = []
@@ -145,26 +164,10 @@ def figure_8(h: float) -> tuple:
   p.append([0, h, 0, 0])
   p.append([0, 0.5 * h, -0.75 * np.pi, 0])
 
-  n1 = n2 = calc_n(p)
+  s = gen_spline(p)
 
-  s1 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[0],
-                     pf = p[1]
-                    )
-  s2 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[1],
-                     pf = p[2]
-                    )
-  s3 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[2],
-                     pf = p[3]
-                    )
-  s4 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[3],
-                     pf = p[0]
-                    )
   u = sympy.symbols('u')
-  sympy.plot_parametric(s1(u), s2(u), s3(u), s4(u),
+  sympy.plot_parametric(*[si(u) for si in s],
                         (u, 0, 1),
                         xlim = (-0.5 * h * 1.5, 0.5 * h * 1.5),
                         ylim = (0, h * 1.5)
@@ -177,26 +180,10 @@ def circle(r: float):
   p.append([0, 2 * r, np.pi, 0])
   p.append([-r, r, 1.5 * np.pi, 0])
 
-  n1 = n2 = calc_n(p)
+  s = gen_spline(p)
 
-  s1 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[0],
-                     pf = p[1]
-                    )
-  s2 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[1],
-                     pf = p[2]
-                    )
-  s3 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[2],
-                     pf = p[3]
-                    )
-  s4 = QuinticSpline(n = [n1, n2, 0, 0],
-                     pi = p[3],
-                     pf = p[0]
-                    )
   u = sympy.symbols('u')
-  sympy.plot_parametric(s1(u), s2(u), s3(u), s4(u),
+  sympy.plot_parametric(*[si(u) for si in s],
                         (u, 0, 1),
                         xlim = (-r * 1.5, r * 1.5),
                         ylim = (0, 2 * r * 1.5)
@@ -204,23 +191,36 @@ def circle(r: float):
 
 def point_to_point(x: float, y: float, thi: float, thf: float):
   p = []
-  p.append([0, 0, thi, 0])
-  p.append([x, y, thf, 0])
+  p.append([     0, 0, thi, 0])
+  p.append([0.25*x, y, thf, 0])
+  p.append([ 0.5*x, y, thf, 0])
+  p.append([     x, y, thf, 0])
+  p.append([ 2.0*x, y, thf, 0])
+  p.append([ 4.0*x, y, thf, 0])
 
-  n1 = n2 = calc_n(p) * 5
-
-  s = QuinticSpline(n = [n1, n2, 0, 0],
-                    pi = p[0],
-                    pf = p[1]
-                   )
+  s = []
   u = sympy.symbols('u')
-  sympy.plot_parametric(s(u),
+
+  for i in range(1, len(p)):
+    n1 = n2 = calc_n(p[i], p[0])
+    s.append(QuinticSpline(n = [n1, n2, 0, 0],
+                           pi = p[0],
+                           pf = p[i]
+                          )
+            )
+
+  x_max = p[0][0]
+  for i in range(len(p)):
+    if p[i][0] > x_max:
+      x_max = p[i][0]
+
+  sympy.plot_parametric(*[si(u) for si in s],
                         (u, 0, 1),
-                        xlim = (0, x * 1.5),
-                        ylim = (0, x * 1.5)
+                        xlim = (0, x_max),
+                        ylim = (0, y)
                        )
 
 if __name__ == '__main__':
-  #figure_8(3.0)
-  #circle(5)
-  point_to_point(10, 10, 0.5 * np.pi, 1.5 * np.pi)
+  figure_8(3.0)
+  circle(5)
+  point_to_point(1, 1, 0, 0)
